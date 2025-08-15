@@ -48,42 +48,68 @@ export const Map3D: React.FC<Map3DProps> = ({
   const [mapType, setMapType] = useState<'roadmap' | 'satellite' | 'hybrid'>('satellite');
   const [showControls, setShowControls] = useState(true);
 
-  // Throttled map update functions to prevent flickering
+  // Enhanced throttled map update with coordinate stabilization
   const throttledMapUpdate = useCallback(
     throttle((position: Position, mapHeading: number) => {
-      if (!mapInstanceRef.current) return;
+      if (!mapInstanceRef.current || !position) return;
       
       const now = Date.now();
-      if (now - lastUpdateTime.current < 200) return; // Limit updates to 5fps max
+      if (now - lastUpdateTime.current < 300) return; // Limit updates to prevent flicker
       
       lastUpdateTime.current = now;
       
-      if (isNavigating) {
-        // Smooth map center updates for navigation
-        const currentCenter = mapInstanceRef.current.getCenter();
-        const distance = google.maps.geometry.spherical.computeDistanceBetween(
-          new google.maps.LatLng(currentCenter.lat(), currentCenter.lng()),
-          new google.maps.LatLng(position.lat, position.lng)
-        );
-        
-        // Only update if position has changed significantly
-        if (distance > 5) { // 5 meters threshold
-          mapInstanceRef.current.panTo(position);
-        }
-        
-        // Smooth heading updates
-        if (mapHeading > 0) {
-          const currentHeading = mapInstanceRef.current.getHeading() || 0;
-          const headingDiff = Math.abs(mapHeading - currentHeading);
+      try {
+        if (isNavigating) {
+          // Get current map center for comparison
+          const currentCenter = mapInstanceRef.current.getCenter();
+          if (!currentCenter) return;
           
-          if (headingDiff > 5) { // 5 degree threshold
-            mapInstanceRef.current.setHeading(mapHeading);
+          // Calculate distance using our own function to avoid Google Maps API dependency
+          const lat1 = currentCenter.lat();
+          const lng1 = currentCenter.lng();
+          const lat2 = position.lat;
+          const lng2 = position.lng;
+          
+          const R = 6371000; // Earth's radius in meters
+          const lat1Rad = lat1 * Math.PI / 180;
+          const lat2Rad = lat2 * Math.PI / 180;
+          const deltaLat = (lat2 - lat1) * Math.PI / 180;
+          const deltaLng = (lng2 - lng1) * Math.PI / 180;
+
+          const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                    Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+                    Math.sin(deltaLng/2) * Math.sin(deltaLng/2);
+          const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+          const distance = R * c;
+          
+          // Only update map center if significant movement (reduces flickering)
+          if (distance > 3) { // 3 meter threshold for navigation
+            // Use smooth pan instead of direct center setting
+            mapInstanceRef.current.panTo(new window.google.maps.LatLng(position.lat, position.lng));
           }
+          
+          // Smooth heading updates with larger threshold
+          if (mapHeading > 0) {
+            const currentHeading = mapInstanceRef.current.getHeading() || 0;
+            let headingDiff = Math.abs(mapHeading - currentHeading);
+            
+            // Handle heading wrap-around (360° to 0°)
+            if (headingDiff > 180) {
+              headingDiff = 360 - headingDiff;
+            }
+            
+            if (headingDiff > 10) { // 10 degree threshold to reduce heading flicker
+              mapInstanceRef.current.setHeading(mapHeading);
+            }
+          }
+        } else {
+          // For tour mode, use gentler updates
+          mapInstanceRef.current.panTo(new window.google.maps.LatLng(position.lat, position.lng));
         }
-      } else {
-        mapInstanceRef.current.panTo(position);
+      } catch (error) {
+        console.warn('Map update error:', error);
       }
-    }, 200),
+    }, 300), // Increased throttle interval for more stability
     [isNavigating]
   );
 
@@ -277,32 +303,64 @@ export const Map3D: React.FC<Map3DProps> = ({
 
   }, [center, tourPoints, routePath, selectedLanguage, onPointClick, completedPoints, isNavigating, navigationRoute, destination]);
 
-  // Update current position marker with anti-flicker optimization
+  // Update current position marker with enhanced stability
   useEffect(() => {
     if (!mapInstanceRef.current || !currentPosition) return;
 
-    // Update marker position smoothly
+    // Create or update marker with position stabilization
     if (currentMarkerRef.current) {
-      // Smooth position updates
-      currentMarkerRef.current.setPosition(currentPosition);
+      // Calculate distance from current marker position to new position
+      const currentMarkerPos = currentMarkerRef.current.getPosition();
+      if (currentMarkerPos) {
+        const lat1 = currentMarkerPos.lat();
+        const lng1 = currentMarkerPos.lng();
+        const lat2 = currentPosition.lat;
+        const lng2 = currentPosition.lng;
+        
+        // Calculate distance between marker positions
+        const deltaLat = (lat2 - lat1) * Math.PI / 180;
+        const deltaLng = (lng2 - lng1) * Math.PI / 180;
+        const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(deltaLng/2) * Math.sin(deltaLng/2);
+        const distance = 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        
+        // Only update marker position if movement is significant (reduces jitter)
+        if (distance > 2) { // 2 meter threshold
+          currentMarkerRef.current.setPosition(new window.google.maps.LatLng(currentPosition.lat, currentPosition.lng));
+        }
+      }
       
-      // Update icon rotation for heading
-      const currentIcon = currentMarkerRef.current.getIcon();
-      if (currentIcon && heading !== undefined) {
-        currentMarkerRef.current.setIcon({
-          ...currentIcon,
-          rotation: heading
-        });
+      // Update heading with smoothing
+      if (heading !== undefined) {
+        const currentIcon = currentMarkerRef.current.getIcon();
+        if (currentIcon && typeof currentIcon === 'object') {
+          // Only update rotation if heading change is significant
+          const currentRotation = currentIcon.rotation || 0;
+          let headingDiff = Math.abs(heading - currentRotation);
+          
+          // Handle 360° wrap-around
+          if (headingDiff > 180) {
+            headingDiff = 360 - headingDiff;
+          }
+          
+          if (headingDiff > 5) { // 5 degree threshold for rotation updates
+            currentMarkerRef.current.setIcon({
+              ...currentIcon,
+              rotation: heading
+            });
+          }
+        }
       }
     } else {
-      // Create marker only once
+      // Create marker only once with optimized settings
       currentMarkerRef.current = new window.google.maps.Marker({
-        position: currentPosition,
+        position: new window.google.maps.LatLng(currentPosition.lat, currentPosition.lng),
         map: mapInstanceRef.current,
         icon: {
           path: isNavigating 
-            ? 'M 0,-40 L 15,-8 L 0,-16 L -15,-8 Z' // Larger arrow for navigation
-            : 'M 0,-30 L 12,-6 L 0,-12 L -12,-6 Z',
+            ? 'M 0,-40 L 15,-8 L 0,-16 L -15,-8 Z' // Navigation arrow
+            : 'M 0,-30 L 12,-6 L 0,-12 L -12,-6 Z', // Tour arrow
           scale: isNavigating ? 2.5 : 2,
           fillColor: isNavigating ? '#1d4ed8' : '#ef4444',
           fillOpacity: 1,
@@ -313,18 +371,21 @@ export const Map3D: React.FC<Map3DProps> = ({
         },
         zIndex: 1000,
         title: isNavigating ? 'Navigating - Current Position' : 'Your Current Location',
-        optimized: true // Enable marker optimization for better performance
+        optimized: true, // Enable optimized rendering
+        clickable: false // Disable clicks to improve performance
       });
     }
 
-    // Use throttled map updates to prevent flickering
+    // Use throttled map updates with position validation
     throttledMapUpdate(currentPosition, heading || 0);
     
-    // Set appropriate zoom level once
-    if (isNavigating && mapInstanceRef.current.getZoom() < 19) {
-      mapInstanceRef.current.setZoom(19);
-    } else if (!isNavigating && mapInstanceRef.current.getZoom() < 16) {
-      mapInstanceRef.current.setZoom(16);
+    // Set zoom level with stability check
+    const currentZoom = mapInstanceRef.current.getZoom();
+    const targetZoom = isNavigating ? 19 : 16;
+    
+    if (Math.abs(currentZoom - targetZoom) > 1) {
+      // Use smooth zoom transition
+      mapInstanceRef.current.setZoom(targetZoom);
     }
   }, [currentPosition, heading, isNavigating, throttledMapUpdate]);
 

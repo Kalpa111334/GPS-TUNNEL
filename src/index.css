@@ -86,6 +86,21 @@
            hover:bg-white/95 border border-gray-200/50;
   }
   
+  /* GPS coordinate stabilization */
+  .gps-stable-indicator {
+    @apply transition-all duration-300 ease-in-out;
+  }
+  
+  .gps-flickering {
+    animation: gps-stabilize 0.3s ease-in-out;
+  }
+  
+  @keyframes gps-stabilize {
+    0% { opacity: 0.7; transform: scale(0.98); }
+    50% { opacity: 0.9; transform: scale(1.01); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  
   /* Safe area handling for devices with notches */
   .safe-area-top {
     padding-top: env(safe-area-inset-top);

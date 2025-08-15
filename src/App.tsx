@@ -15,6 +15,8 @@ import { StartNavigateButton } from './components/StartNavigateButton';
 import { MobileBottomSheet } from './components/MobileBottomSheet';
 import { TouchGestureHandler } from './components/TouchGestureHandler';
 import { useGeolocation } from './hooks/useGeolocation';
+import { useStableGPS } from './hooks/useStableGPS';
+import { GPSStatusIndicator } from './components/GPSStatusIndicator';
 import { useTourRoute } from './hooks/useTourRoute';
 import { useSpeech } from './hooks/useSpeech';
 import { useTourProgress } from './hooks/useTourProgress';
@@ -32,18 +34,44 @@ function App() {
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 1024);
   const [showMobileControls, setShowMobileControls] = useState(false);
   
+  // Use stable GPS for better accuracy and reduced flickering
+  const stableGPS = useStableGPS({
+    minAccuracy: 3,
+    maxAccuracy: 50,
+    smoothingFactor: 0.2,
+    outlierThreshold: 25,
+    minUpdateInterval: 300,
+    enableKalmanFilter: true,
+    enableMedianFilter: true,
+    enableConfidenceFiltering: true
+  });
+
+  // Fallback to regular geolocation for compatibility
+  const fallbackGPS = useGeolocation();
+
+  // Use stable GPS if available, otherwise fallback
   const { 
     position, 
     error, 
     isLoading, 
-    speed, 
-    heading, 
     accuracy, 
     currentAddress,
-    hasPermission,
     startTracking, 
     stopTracking
-  } = useGeolocation();
+  } = stableGPS.smoothedPosition ? {
+    position: stableGPS.smoothedPosition,
+    error: stableGPS.error,
+    isLoading: stableGPS.isLoading,
+    accuracy: stableGPS.accuracy,
+    currentAddress: fallbackGPS.currentAddress, // Use fallback for address
+    startTracking: stableGPS.startTracking,
+    stopTracking: stableGPS.stopTracking
+  } : fallbackGPS;
+
+  // Additional GPS data for status display
+  const speed = fallbackGPS.speed || 0;
+  const heading = fallbackGPS.heading || 0;
+  const hasPermission = fallbackGPS.hasPermission;
   
   const { 
     tourPoints, 
@@ -408,12 +436,25 @@ function App() {
                 </div>
               )}
               
-          <LocationStatus
-            isConnected={hasPermission && !!position && !error}
-            accuracy={accuracy}
-            speed={speed}
-            error={error}
-          />
+          <div className="flex space-x-2">
+            <LocationStatus
+              isConnected={hasPermission && !!position && !error}
+              accuracy={accuracy}
+              speed={speed}
+              error={error}
+            />
+            
+            {/* Enhanced GPS Status Indicator */}
+            <GPSStatusIndicator
+              accuracy={stableGPS.accuracy || accuracy}
+              signalQuality={stableGPS.signalQuality || (accuracy <= 10 ? 'excellent' : accuracy <= 20 ? 'good' : accuracy <= 35 ? 'fair' : 'poor')}
+              confidence={stableGPS.confidence || 0.5}
+              isStable={stableGPS.isStable || false}
+              isLoading={isLoading}
+              error={error}
+              readingsCount={stableGPS.rawReadingsCount || 0}
+            />
+          </div>
         </div>
 
         {/* Tour Info */}
