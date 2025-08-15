@@ -1,3 +1,213 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Mobile-specific optimizations */
+@layer base {
+  html {
+    /* Prevent zoom on iOS double-tap */
+    touch-action: manipulation;
+  }
+  
+  body {
+    /* Prevent text selection on UI elements */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    user-select: none;
+    /* Enable hardware acceleration */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    /* Disable tap highlight on iOS */
+    -webkit-tap-highlight-color: transparent;
+    /* Improve scrolling performance */
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Allow text selection in specific areas */
+  input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    user-select: text;
+  }
+}
+
+@layer components {
+  /* Touch-friendly buttons */
+  .btn-touch {
+    @apply min-h-[44px] min-w-[44px] touch-manipulation;
+  }
+  
+  /* Mobile-first containers */
+  .mobile-container {
+    @apply px-4 sm:px-6 lg:px-8;
+  }
+  
+  /* Safe area handling for devices with notches */
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-area-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-area-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Mobile navigation improvements */
+  .mobile-nav {
+    @apply fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200;
+  }
+  
+  /* Swipe indicators */
+  .swipe-indicator {
+    @apply w-12 h-1 bg-gray-300 rounded-full mx-auto mb-2;
+  }
+  
+  /* Mobile map controls */
+  .map-controls-mobile {
+    @apply absolute top-4 right-4 z-10 space-y-2;
+  }
+  
+  .map-control-btn {
+    @apply bg-white/90 backdrop-blur-sm p-3 rounded-full shadow-lg border border-gray-200 touch-manipulation;
+  }
+  
+  /* Mobile-optimized cards */
+  .mobile-card {
+    @apply rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 p-4 shadow-xl;
+  }
+  
+  /* Responsive text scaling */
+  .text-responsive {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
+  
+  .heading-responsive {
+    @apply text-xl sm:text-2xl lg:text-3xl;
+  }
+}
+
+@layer utilities {
+  /* Touch-friendly spacing */
+  .touch-spacing {
+    @apply space-y-4 sm:space-y-6;
+  }
+  
+  /* Mobile-first grid */
+  .mobile-grid {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6;
+  }
+  
+  /* Sticky positioning for mobile */
+  .sticky-mobile {
+    @apply sticky top-0 z-40;
+  }
+  
+  /* Hide on mobile */
+  .hide-mobile {
+    @apply hidden sm:block;
+  }
+  
+  /* Show only on mobile */
+  .show-mobile {
+    @apply block sm:hidden;
+  }
+  
+  /* Mobile-optimized transitions */
+  .transition-mobile {
+    @apply transition-all duration-200 ease-out;
+  }
+}
+
+/* Mobile-specific animations */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out;
+}
+
+/* Scrollbar styling for mobile webkit */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+/* Map container mobile optimizations */
+.map-container-mobile {
+  position: relative;
+  width: 100%;
+  height: 60vh;
+  min-height: 300px;
+  max-height: 500px;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  .map-container-mobile {
+    height: 50vh;
+    min-height: 250px;
+  }
+}
+
+/* Touch feedback for interactive elements */
+.touch-feedback {
+  transition: transform 0.1s ease-out, background-color 0.1s ease-out;
+}
+
+.touch-feedback:active {
+  transform: scale(0.98);
+}
+
+/* Loading spinner optimizations for mobile */
+.mobile-spinner {
+  @apply w-6 h-6 sm:w-8 sm:h-8 border-2 border-current border-t-transparent rounded-full animate-spin;
+}
+
+/* Volume slider with CSS custom property */
+.slider {
+  background: linear-gradient(to right, #ea580c 0%, #ea580c var(--volume-percent, 0%), #e5e7eb var(--volume-percent, 0%), #e5e7eb 100%) !important;
+}

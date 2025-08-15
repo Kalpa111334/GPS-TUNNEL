@@ -41,8 +41,8 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
   if (!isNavigating) return null;
 
   return (
-    <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-900 to-teal-800 text-white shadow-2xl">
-      <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+    <div className="fixed top-0 left-0 right-0 z-50 bg-gradient-to-r from-blue-900 to-teal-800 text-white shadow-2xl safe-area-top animate-slide-down">
+      <div className="mobile-container py-3 sm:py-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-3 sm:mb-4">
           <div className="flex items-center space-x-2 sm:space-x-3">
@@ -54,7 +54,7 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
           </div>
           <button
             onClick={onStopNavigation}
-            className="bg-red-600 hover:bg-red-700 px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base"
+            className="btn-touch touch-feedback bg-red-600 hover:bg-red-700 px-3 sm:px-4 py-2 rounded-lg font-medium transition-mobile text-sm sm:text-base"
           >
             <span className="hidden sm:inline">Stop Navigation</span>
             <span className="sm:hidden">Stop</span>
@@ -64,7 +64,7 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
         {/* Navigation Info */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 mb-3 sm:mb-4">
           {/* Distance & Time */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 sm:p-4">
+          <div className="mobile-card p-3 sm:p-4">
             <div className="flex items-center space-x-2 mb-2">
               <Route className="w-4 sm:w-5 h-4 sm:h-5 text-blue-300" />
               <span className="font-semibold text-sm sm:text-base">Remaining</span>
@@ -74,7 +74,7 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
           </div>
 
           {/* Current Instruction */}
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3 sm:p-4 md:col-span-2">
+          <div className="mobile-card p-3 sm:p-4 md:col-span-2">
             <div className="flex items-center space-x-2 mb-2">
               <ArrowRight className="w-4 sm:w-5 h-4 sm:h-5 text-green-400" />
               <span className="font-semibold text-sm sm:text-base">Current Direction</span>
@@ -92,11 +92,11 @@ export const NavigationView: React.FC<NavigationViewProps> = ({
 
         {/* Destination Info */}
         {destination && (
-          <div className="bg-white/5 rounded-lg p-3">
-            <div className="flex items-center space-x-2 flex-wrap">
+          <div className="bg-white/5 rounded-lg p-3 touch-feedback">
+            <div className="flex items-center space-x-2 flex-wrap gap-1">
               <MapPin className="w-4 h-4 text-orange-400" />
               <span className="text-xs sm:text-sm font-medium">Destination:</span>
-              <span className="text-xs sm:text-sm text-blue-200 break-all">
+              <span className="text-xs sm:text-sm text-blue-200 font-mono break-all">
                 {destination.lat.toFixed(4)}, {destination.lng.toFixed(4)}
               </span>
             </div>

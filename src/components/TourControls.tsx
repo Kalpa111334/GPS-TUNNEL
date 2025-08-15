@@ -17,15 +17,15 @@ export const TourControls: React.FC<TourControlsProps> = ({
   isLoading
 }) => {
   return (
-    <div className="flex items-center space-x-4">
+    <div className="flex items-center space-x-2 sm:space-x-4 flex-wrap gap-2">
       {!isActive ? (
         <button
           onClick={onStart}
           disabled={isLoading}
-          className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-teal-600 text-white px-6 py-3 rounded-full shadow-lg hover:from-blue-700 hover:to-teal-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="btn-touch touch-feedback flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-teal-600 text-white px-4 sm:px-6 py-3 rounded-full shadow-lg hover:from-blue-700 hover:to-teal-700 transition-mobile disabled:opacity-50 disabled:cursor-not-allowed min-w-[120px] justify-center"
         >
-          <Play className="w-5 h-5" />
-          <span className="font-semibold">
+          <Play className="w-4 sm:w-5 h-4 sm:h-5" />
+          <span className="font-semibold text-sm sm:text-base">
             {isLoading ? 'Getting Location...' : 'Start Tour'}
           </span>
         </button>
@@ -33,17 +33,17 @@ export const TourControls: React.FC<TourControlsProps> = ({
         <>
           <button
             onClick={onPause}
-            className="flex items-center space-x-2 bg-orange-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-orange-700 transition-colors"
+            className="btn-touch touch-feedback flex items-center space-x-1 sm:space-x-2 bg-orange-600 text-white px-3 sm:px-4 py-2 rounded-full shadow-lg hover:bg-orange-700 transition-mobile"
           >
             <Pause className="w-4 h-4" />
-            <span>Pause</span>
+            <span className="text-sm sm:text-base">Pause</span>
           </button>
           <button
             onClick={onStop}
-            className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-full shadow-lg hover:bg-red-700 transition-colors"
+            className="btn-touch touch-feedback flex items-center space-x-1 sm:space-x-2 bg-red-600 text-white px-3 sm:px-4 py-2 rounded-full shadow-lg hover:bg-red-700 transition-mobile"
           >
             <Square className="w-4 h-4" />
-            <span>Stop</span>
+            <span className="text-sm sm:text-base">Stop</span>
           </button>
         </>
       )}

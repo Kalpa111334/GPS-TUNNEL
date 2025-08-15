@@ -49,15 +49,15 @@ export const EmergencyContact: React.FC<EmergencyContactProps> = ({ currentPosit
     <>
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 bg-red-600 text-white p-4 rounded-full shadow-lg hover:bg-red-700 transition-colors z-50"
+        className="fixed bottom-6 right-6 bg-red-600 text-white p-4 rounded-full shadow-lg hover:bg-red-700 transition-mobile z-50 btn-touch touch-feedback safe-area-bottom safe-area-right"
         title="Emergency Contacts"
       >
         <AlertTriangle className="w-6 h-6" />
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 safe-area-top safe-area-bottom">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl animate-slide-up max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold text-gray-800 flex items-center">
                 <AlertTriangle className="w-6 h-6 text-red-600 mr-2" />
@@ -65,7 +65,7 @@ export const EmergencyContact: React.FC<EmergencyContactProps> = ({ currentPosit
               </h3>
               <button
                 onClick={() => setIsOpen(false)}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 btn-touch touch-feedback"
                 title="Close"
               >
                 <X className="w-6 h-6" />
@@ -83,7 +83,7 @@ export const EmergencyContact: React.FC<EmergencyContactProps> = ({ currentPosit
                     </div>
                     <button
                       onClick={() => handleCall(contact.number)}
-                      className="bg-green-600 text-white p-3 rounded-full hover:bg-green-700 transition-colors"
+                      className="bg-green-600 text-white p-3 rounded-full hover:bg-green-700 transition-mobile btn-touch touch-feedback"
                       title={`Call ${contact.name}`}
                     >
                       <Phone className="w-5 h-5" />
@@ -97,7 +97,7 @@ export const EmergencyContact: React.FC<EmergencyContactProps> = ({ currentPosit
               <div className="border-t pt-4">
                 <button
                   onClick={shareLocation}
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center space-x-2"
+                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-mobile flex items-center justify-center space-x-2 btn-touch touch-feedback"
                 >
                   <MapPin className="w-5 h-5" />
                   <span>Share My Location</span>

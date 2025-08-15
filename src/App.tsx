@@ -12,6 +12,8 @@ import { TourProgress } from './components/TourProgress';
 import { EmergencyContact } from './components/EmergencyContact';
 import { NavigationView } from './components/NavigationView';
 import { StartNavigateButton } from './components/StartNavigateButton';
+import { MobileBottomSheet } from './components/MobileBottomSheet';
+import { TouchGestureHandler } from './components/TouchGestureHandler';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useTourRoute } from './hooks/useTourRoute';
 import { useSpeech } from './hooks/useSpeech';
@@ -27,6 +29,8 @@ function App() {
   const [isTourActive, setIsTourActive] = useState(false);
   const [isNavigationMode, setIsNavigationMode] = useState(false);
   const [lastAnnouncedPoint, setLastAnnouncedPoint] = useState<string | null>(null);
+  const [isMobileView, setIsMobileView] = useState(window.innerWidth < 1024);
+  const [showMobileControls, setShowMobileControls] = useState(false);
   
   const { 
     position, 
@@ -202,6 +206,16 @@ function App() {
     return calculateDistance(position, targetPoint.position);
   };
 
+  // Check for mobile view on resize
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 1024);
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Default center to Amsterdam if no position yet
   const mapCenter = position || { lat: 52.3676, lng: 4.9041 };
   const nextPoint = getNextPoint();
@@ -216,7 +230,7 @@ function App() {
   }, 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-teal-800">
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-teal-800 safe-area-top safe-area-bottom">
       {/* Navigation View Overlay */}
       <NavigationView
         isNavigating={navigationState.isNavigating}
@@ -229,20 +243,20 @@ function App() {
       />
 
       {/* Header */}
-      <div className={`bg-white/10 backdrop-blur-sm border-b border-white/20 ${navigationState.isNavigating ? 'mt-20 sm:mt-32' : ''}`}>
-        <div className="container mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <div className={`bg-white/10 backdrop-blur-sm border-b border-white/20 sticky-mobile ${navigationState.isNavigating ? 'mt-16 sm:mt-32' : ''}`}>
+        <div className="mobile-container py-3 sm:py-4">
           <div className="flex items-center justify-between flex-wrap gap-2 sm:gap-4">
             <div className="flex items-center space-x-2 sm:space-x-3">
-              <div className="bg-white/20 backdrop-blur-sm rounded-full p-2 sm:p-3">
+              <div className="bg-white/20 backdrop-blur-sm rounded-full p-2 sm:p-3 btn-touch">
                 <Anchor className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
               </div>
-              <div>
-                <h1 className="text-lg sm:text-2xl font-bold text-white">GPS TUNNEL</h1>
-                <p className="text-blue-100 text-xs sm:text-sm">Dutch Trails Restaurant</p>
+              <div className="flex-1 min-w-0">
+                <h1 className="heading-responsive font-bold text-white truncate">GPS TUNNEL</h1>
+                <p className="text-blue-100 text-xs sm:text-sm truncate">Dutch Trails Restaurant</p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-2 sm:space-x-4 flex-wrap gap-1 sm:gap-2">
+            <div className="flex items-center space-x-1 sm:space-x-2 md:space-x-4 flex-shrink-0">
               <LanguageSelector
                 selectedLanguage={selectedLanguage}
                 onLanguageChange={handleLanguageChange}
@@ -260,10 +274,11 @@ function App() {
                 <button
                   onClick={handleRegenerateRoute}
                   disabled={isRouteLoading}
-                  className="flex items-center space-x-1 sm:space-x-2 bg-white/90 backdrop-blur-sm text-gray-800 px-2 sm:px-4 py-2 rounded-full shadow-lg hover:bg-white transition-all duration-200 border border-gray-200 disabled:opacity-50"
+                  className="btn-touch touch-feedback flex items-center space-x-1 sm:space-x-2 bg-white/90 backdrop-blur-sm text-gray-800 px-3 sm:px-4 py-2 rounded-full shadow-lg hover:bg-white transition-mobile border border-gray-200 disabled:opacity-50"
                 >
-                  <RefreshCw className={`w-3 sm:w-4 h-3 sm:h-4 ${isRouteLoading ? 'animate-spin' : ''}`} />
-                  <span className="font-medium text-xs sm:text-sm">Update Route</span>
+                  <RefreshCw className={`w-4 h-4 ${isRouteLoading ? 'animate-spin' : ''}`} />
+                  <span className="font-medium text-xs sm:text-sm hide-mobile">Update Route</span>
+                  <span className="font-medium text-xs show-mobile">Update</span>
                 </button>
               )}
             </div>
@@ -271,11 +286,21 @@ function App() {
         </div>
       </div>
 
-      <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
-        <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
+      <div className="mobile-container py-4 sm:py-6">
+        <div className={`grid ${isMobileView ? 'grid-cols-1' : 'lg:grid-cols-3'} gap-4 sm:gap-6`}>
           {/* Map Section */}
-          <div className="lg:col-span-2 order-2 lg:order-1">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-3 sm:p-4 shadow-xl border border-white/20">
+          <div className={`${isMobileView ? 'col-span-1' : 'lg:col-span-2'} order-1 lg:order-1`}>
+            <TouchGestureHandler
+              onSwipeUp={() => isMobileView && setShowMobileControls(true)}
+              onSwipeDown={() => isMobileView && setShowMobileControls(false)}
+              onDoubleTap={() => {
+                if (currentPosition) {
+                  // Double tap to recenter map - functionality will be handled in Map3D component
+                  console.log('Double tap to recenter');
+                }
+              }}
+            >
+              <div className="mobile-card p-3 sm:p-4">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h2 className="text-lg sm:text-xl font-bold text-white flex items-center">
                   <Navigation2 className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
@@ -296,7 +321,7 @@ function App() {
                 </div>
               </div>
 
-              <div className="h-64 sm:h-80 md:h-96 lg:h-[500px]">
+              <div className="map-container-mobile">
                 {window.google ? (
                   <Map3D
                     center={mapCenter}
@@ -329,16 +354,43 @@ function App() {
                 )}
               </div>
             </div>
+            </TouchGestureHandler>
           </div>
 
-          {/* Controls Section */}
-          <div className="space-y-4 sm:space-y-6 order-1 lg:order-2">
-            {/* Weather Widget */}
-            <WeatherWidget position={position} />
+          {/* Controls Section - Desktop or Mobile Bottom Sheet */}
+          {isMobileView ? (
+            <MobileBottomSheet
+              title="Tour Controls"
+              defaultExpanded={showMobileControls}
+              snapPoints={[15, 40, 75]}
+              className="lg:hidden"
+            >
+              <div className="touch-spacing">
+                {renderControlsContent()}
+              </div>
+            </MobileBottomSheet>
+          ) : (
+            <div className="touch-spacing order-2 lg:order-2">
+              {renderControlsContent()}
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Emergency Contact Button */}
+      <EmergencyContact currentPosition={position} />
+    </div>
+  );
+  
+  function renderControlsContent() {
+    return (
+      <>
+        {/* Weather Widget */}
+        <WeatherWidget position={position} />
             
-            {/* Tour Controls */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-xl border border-white/20">
-              <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4">Tour Controls</h3>
+        {/* Tour Controls */}
+        <div className="mobile-card p-4 sm:p-6">
+          <h3 className="heading-responsive font-bold text-white mb-3 sm:mb-4">Tour Controls</h3>
               
               <TourControls
                 isActive={isTourActive}
@@ -356,104 +408,99 @@ function App() {
                 </div>
               )}
               
-              <LocationStatus
-                isConnected={hasPermission && !!position && !error}
-                accuracy={accuracy}
-                speed={speed}
-                error={error}
-              />
-            </div>
+          <LocationStatus
+            isConnected={hasPermission && !!position && !error}
+            accuracy={accuracy}
+            speed={speed}
+            error={error}
+          />
+        </div>
 
-            {/* Tour Info */}
-            {isTourActive && (
+        {/* Tour Info */}
+        {isTourActive && (
+          <>
+            <TourProgress
+              tourPoints={tourPoints}
+              currentIndex={currentIndex}
+              selectedLanguage={selectedLanguage}
+              completedPoints={completedPoints}
+            />
+            
+            <TourInfo
+              currentPoint={currentPoint}
+              nextPoint={nextPoint}
+              distance={getCurrentDistance()}
+              speed={speed}
+              selectedLanguage={selectedLanguage}
+            />
+          </>
+        )}
+
+        {/* Welcome Message */}
+        {!isTourActive && !isNavigationMode && tourPoints.length === 0 && (
+          <div className="mobile-card p-4 sm:p-6">
+            <h3 className="heading-responsive font-bold text-white mb-3">
+              {isRouteLoading ? 'Preparing Your Tour...' : 'Welcome to GPS Tunnel'}
+            </h3>
+            {isRouteLoading ? (
+              <div className="flex items-center space-x-3 text-white/80">
+                <RefreshCw className="w-5 h-5 animate-spin" />
+                <span>Finding the best scenic routes and restaurants near you...</span>
+              </div>
+            ) : (
               <>
-                <TourProgress
-                  tourPoints={tourPoints}
-                  currentIndex={currentIndex}
-                  selectedLanguage={selectedLanguage}
-                  completedPoints={completedPoints}
-                />
-                
-                <TourInfo
-                  currentPoint={currentPoint}
-                  nextPoint={nextPoint}
-                  distance={getCurrentDistance()}
-                  speed={speed}
-                  selectedLanguage={selectedLanguage}
-                />
+                <p className="text-white/80 text-responsive leading-relaxed mb-4">
+                  Experience Amsterdam's canals like never before with our immersive 3D dining boat tour. 
+                  Choose your preferred language and let us guide you through the most scenic waterways 
+                  while you enjoy exceptional cuisine.
+                </p>
+                {tourPoints.length > 0 && (
+                  <div className="bg-green-500/20 rounded-lg p-3 text-green-100 text-xs mb-4">
+                    <strong>🎯 Route Ready:</strong> Found {tourPoints.length} amazing destinations including 
+                    scenic viewpoints and waterfront restaurants along your personalized route.
+                  </div>
+                )}
               </>
             )}
-
-            {/* Welcome Message */}
-            {!isTourActive && !isNavigationMode && tourPoints.length === 0 && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-xl border border-white/20">
-                <h3 className="text-lg sm:text-xl font-bold text-white mb-3">
-                  {isRouteLoading ? 'Preparing Your Tour...' : 'Welcome to GPS Tunnel'}
-                </h3>
-                {isRouteLoading ? (
-                  <div className="flex items-center space-x-3 text-white/80">
-                    <RefreshCw className="w-5 h-5 animate-spin" />
-                    <span>Finding the best scenic routes and restaurants near you...</span>
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-white/80 text-sm leading-relaxed mb-4">
-                      Experience Amsterdam's canals like never before with our immersive 3D dining boat tour. 
-                      Choose your preferred language and let us guide you through the most scenic waterways 
-                      while you enjoy exceptional cuisine.
-                    </p>
-                    {tourPoints.length > 0 && (
-                      <div className="bg-green-500/20 rounded-lg p-3 text-green-100 text-xs mb-4">
-                        <strong>🎯 Route Ready:</strong> Found {tourPoints.length} amazing destinations including 
-                        scenic viewpoints and waterfront restaurants along your personalized route.
-                      </div>
-                    )}
-                  </>
-                )}
-                <div className="bg-blue-500/20 rounded-lg p-3 text-blue-100 text-xs">
-                  <strong>🎯 Features:</strong> Real-time GPS tracking, 3D maps, multi-language narration, 
-                  voice guidance, dynamic route optimization, and live location-based discoveries.
-                </div>
-              </div>
-            )}
-            
-            {/* Route Preview */}
-            {!isTourActive && !isNavigationMode && tourPoints.length > 0 && (
-              <RoutePreview
-                tourPoints={tourPoints}
-                selectedLanguage={selectedLanguage}
-                estimatedDuration={estimatedDuration}
-                totalDistance={totalDistance}
-                onStartTour={handleStartTour}
-              />
-            )}
-
-            {/* Navigation Mode */}
-            {!isTourActive && !isNavigationMode && position && (
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-6 shadow-xl border border-white/20">
-                <h3 className="text-lg sm:text-xl font-bold text-white mb-3 sm:mb-4 flex items-center">
-                  <Navigation2 className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
-                  <span className="hidden sm:inline">Point-to-Point Navigation</span>
-                  <span className="sm:hidden">Navigation</span>
-                </h3>
-                <p className="text-white/80 text-sm mb-4">
-                  Navigate directly to any destination with turn-by-turn voice guidance in your selected language.
-                </p>
-                <StartNavigateButton
-                  onStartNavigation={startNavigation}
-                  isCalculating={isCalculatingRoute}
-                  currentPosition={position}
-                />
-              </div>
-            )}
+            <div className="bg-blue-500/20 rounded-lg p-3 text-blue-100 text-xs">
+              <strong>🎯 Features:</strong> Real-time GPS tracking, 3D maps, multi-language narration, 
+              voice guidance, dynamic route optimization, and live location-based discoveries.
+            </div>
           </div>
-        </div>
-      </div>
-      
-      {/* Emergency Contact Button */}
-      <EmergencyContact currentPosition={position} />
-    </div>
-  );
+        )}
+        
+        {/* Route Preview */}
+        {!isTourActive && !isNavigationMode && tourPoints.length > 0 && (
+          <RoutePreview
+            tourPoints={tourPoints}
+            selectedLanguage={selectedLanguage}
+            estimatedDuration={estimatedDuration}
+            totalDistance={totalDistance}
+            onStartTour={handleStartTour}
+          />
+        )}
+
+        {/* Navigation Mode */}
+        {!isTourActive && !isNavigationMode && position && (
+          <div className="mobile-card p-4 sm:p-6">
+            <h3 className="heading-responsive font-bold text-white mb-3 sm:mb-4 flex items-center">
+              <Navigation2 className="w-4 sm:w-5 h-4 sm:h-5 mr-2" />
+              <span className="hidden sm:inline">Point-to-Point Navigation</span>
+              <span className="sm:hidden">Navigation</span>
+            </h3>
+            <p className="text-white/80 text-responsive mb-4">
+              Navigate directly to any destination with turn-by-turn voice guidance in your selected language.
+            </p>
+            <StartNavigateButton
+              onStartNavigation={startNavigation}
+              isCalculating={isCalculatingRoute}
+              currentPosition={position}
+            />
+          </div>
+        )}
+      </>
+    );
+  }
 }
 
 export default App;

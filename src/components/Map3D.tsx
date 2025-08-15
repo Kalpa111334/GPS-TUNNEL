@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Position, TourPoint } from '../types';
+import { RotateCcw, ZoomIn, ZoomOut, Locate, Layers } from 'lucide-react';
 
 interface Map3DProps {
   center: Position;
@@ -42,11 +43,13 @@ export const Map3D: React.FC<Map3DProps> = ({
   const navigationRouteRef = useRef<any>(null);
   const destinationMarkerRef = useRef<any>(null);
   const currentMarkerRef = useRef<any>(null);
+  const [mapType, setMapType] = useState<'roadmap' | 'satellite' | 'hybrid'>('satellite');
+  const [showControls, setShowControls] = useState(true);
 
   useEffect(() => {
     if (!mapRef.current || !window.google) return;
 
-    // Initialize 3D map with navigation optimizations
+    // Initialize 3D map with mobile-optimized navigation
     mapInstanceRef.current = new window.google.maps.Map(mapRef.current, {
       center: center,
       zoom: isNavigating ? 18 : 14,
@@ -55,8 +58,13 @@ export const Map3D: React.FC<Map3DProps> = ({
       heading: heading,
       mapTypeControl: false,
       streetViewControl: false,
-      fullscreenControl: true,
+      fullscreenControl: false, // Disabled for mobile
       zoomControl: true,
+      zoomControlOptions: {
+        position: window.google.maps.ControlPosition.RIGHT_BOTTOM
+      },
+      gestureHandling: 'greedy', // Better mobile touch handling
+      clickableIcons: false, // Reduce accidental clicks on mobile
       styles: isNavigating ? [
         // High contrast navigation styles
         {
@@ -292,11 +300,112 @@ export const Map3D: React.FC<Map3DProps> = ({
     return icons[type as keyof typeof icons] || icons.waypoint;
   };
 
+  const handleZoomIn = () => {
+    if (mapInstanceRef.current) {
+      const currentZoom = mapInstanceRef.current.getZoom();
+      mapInstanceRef.current.setZoom(Math.min(currentZoom + 1, 21));
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (mapInstanceRef.current) {
+      const currentZoom = mapInstanceRef.current.getZoom();
+      mapInstanceRef.current.setZoom(Math.max(currentZoom - 1, 1));
+    }
+  };
+
+  const handleRecenter = () => {
+    if (mapInstanceRef.current && currentPosition) {
+      mapInstanceRef.current.panTo(currentPosition);
+      if (heading > 0) {
+        mapInstanceRef.current.setHeading(heading);
+      }
+    }
+  };
+
+  const handleResetRotation = () => {
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setHeading(0);
+      mapInstanceRef.current.setTilt(45);
+    }
+  };
+
+  const cycleMapType = () => {
+    const types: Array<'roadmap' | 'satellite' | 'hybrid'> = ['roadmap', 'satellite', 'hybrid'];
+    const currentIndex = types.indexOf(mapType);
+    const nextType = types[(currentIndex + 1) % types.length];
+    setMapType(nextType);
+    
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.setMapTypeId(nextType);
+    }
+  };
+
   return (
-    <div 
-      ref={mapRef} 
-      className="w-full h-full rounded-xl overflow-hidden shadow-xl"
-      style={{ minHeight: '400px' }}
-    />
+    <div className="relative w-full h-full rounded-xl overflow-hidden shadow-xl">
+      {/* Map Container */}
+      <div 
+        ref={mapRef} 
+        className="w-full h-full touch-manipulation touch-pan-x touch-pan-y touch-pinch-zoom"
+        style={{ minHeight: window.innerWidth < 640 ? '300px' : '400px' }}
+      />
+      
+      {/* Mobile Map Controls */}
+      {showControls && (
+        <div className="map-controls-mobile">
+          {/* Map Type Toggle */}
+          <button
+            onClick={cycleMapType}
+            className="map-control-btn mb-2"
+            title="Change Map Type"
+          >
+            <Layers className="w-5 h-5 text-gray-700" />
+          </button>
+          
+          {/* Zoom Controls */}
+          <div className="space-y-1">
+            <button
+              onClick={handleZoomIn}
+              className="map-control-btn"
+              title="Zoom In"
+            >
+              <ZoomIn className="w-5 h-5 text-gray-700" />
+            </button>
+            <button
+              onClick={handleZoomOut}
+              className="map-control-btn"
+              title="Zoom Out"
+            >
+              <ZoomOut className="w-5 h-5 text-gray-700" />
+            </button>
+          </div>
+          
+          {/* Location & Rotation Controls */}
+          <div className="space-y-1 mt-2">
+            {currentPosition && (
+              <button
+                onClick={handleRecenter}
+                className="map-control-btn"
+                title="Center on Location"
+              >
+                <Locate className="w-5 h-5 text-blue-600" />
+              </button>
+            )}
+            <button
+              onClick={handleResetRotation}
+              className="map-control-btn"
+              title="Reset Rotation"
+            >
+              <RotateCcw className="w-5 h-5 text-gray-700" />
+            </button>
+          </div>
+        </div>
+      )}
+      
+      {/* Map Type Indicator */}
+      <div className="absolute bottom-4 left-4 bg-black/70 text-white px-3 py-1 rounded-full text-xs font-medium backdrop-blur-sm">
+        {mapType.toUpperCase()}
+      </div>
+    </div>
   );
 };

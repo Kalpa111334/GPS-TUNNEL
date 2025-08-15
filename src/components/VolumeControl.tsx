@@ -21,9 +21,9 @@ export const VolumeControl: React.FC<VolumeControlProps> = ({
   const VolumeIcon = getVolumeIcon();
 
   return (
-    <div className="flex items-center space-x-3 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg border border-gray-200">
+    <div className="flex items-center space-x-2 sm:space-x-3 bg-white/90 backdrop-blur-sm px-2 sm:px-4 py-2 rounded-full shadow-lg border border-gray-200">
       <VolumeIcon 
-        className={`w-5 h-5 ${isSpeaking ? 'text-orange-500 animate-pulse' : 'text-gray-600'}`} 
+        className={`w-4 sm:w-5 h-4 sm:h-5 ${isSpeaking ? 'text-orange-500 animate-pulse' : 'text-gray-600'}`} 
       />
       <input
         type="range"
@@ -32,12 +32,12 @@ export const VolumeControl: React.FC<VolumeControlProps> = ({
         step="0.1"
         value={volume}
         onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
-        className="w-20 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider"
-        style={{
-          background: `linear-gradient(to right, #ea580c 0%, #ea580c ${volume * 100}%, #e5e7eb ${volume * 100}%, #e5e7eb 100%)`
-        }}
+        className="w-12 sm:w-20 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer slider touch-manipulation"
+        style={{'--volume-percent': `${volume * 100}%`} as React.CSSProperties}
+        aria-label="Volume control"
+        title="Adjust volume"
       />
-      <span className="text-sm font-medium text-gray-600 w-8">
+      <span className="text-xs sm:text-sm font-medium text-gray-600 w-6 sm:w-8 hide-mobile">
         {Math.round(volume * 100)}%
       </span>
     </div>
