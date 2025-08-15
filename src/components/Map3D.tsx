@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Position, TourPoint } from '../types';
 import { RotateCcw, ZoomIn, ZoomOut, Locate, Layers } from 'lucide-react';
+import { throttle } from '../utils/mobileOptimizations';
 
 interface Map3DProps {
   center: Position;
@@ -43,28 +44,75 @@ export const Map3D: React.FC<Map3DProps> = ({
   const navigationRouteRef = useRef<any>(null);
   const destinationMarkerRef = useRef<any>(null);
   const currentMarkerRef = useRef<any>(null);
+  const lastUpdateTime = useRef<number>(0);
   const [mapType, setMapType] = useState<'roadmap' | 'satellite' | 'hybrid'>('satellite');
   const [showControls, setShowControls] = useState(true);
+
+  // Throttled map update functions to prevent flickering
+  const throttledMapUpdate = useCallback(
+    throttle((position: Position, mapHeading: number) => {
+      if (!mapInstanceRef.current) return;
+      
+      const now = Date.now();
+      if (now - lastUpdateTime.current < 200) return; // Limit updates to 5fps max
+      
+      lastUpdateTime.current = now;
+      
+      if (isNavigating) {
+        // Smooth map center updates for navigation
+        const currentCenter = mapInstanceRef.current.getCenter();
+        const distance = google.maps.geometry.spherical.computeDistanceBetween(
+          new google.maps.LatLng(currentCenter.lat(), currentCenter.lng()),
+          new google.maps.LatLng(position.lat, position.lng)
+        );
+        
+        // Only update if position has changed significantly
+        if (distance > 5) { // 5 meters threshold
+          mapInstanceRef.current.panTo(position);
+        }
+        
+        // Smooth heading updates
+        if (mapHeading > 0) {
+          const currentHeading = mapInstanceRef.current.getHeading() || 0;
+          const headingDiff = Math.abs(mapHeading - currentHeading);
+          
+          if (headingDiff > 5) { // 5 degree threshold
+            mapInstanceRef.current.setHeading(mapHeading);
+          }
+        }
+      } else {
+        mapInstanceRef.current.panTo(position);
+      }
+    }, 200),
+    [isNavigating]
+  );
 
   useEffect(() => {
     if (!mapRef.current || !window.google) return;
 
-    // Initialize 3D map with mobile-optimized navigation
+    // Initialize mobile-optimized map with anti-flicker settings
     mapInstanceRef.current = new window.google.maps.Map(mapRef.current, {
       center: center,
-      zoom: isNavigating ? 18 : 14,
+      zoom: isNavigating ? 19 : 14,
       mapTypeId: isNavigating ? 'roadmap' : 'satellite',
       tilt: isNavigating ? 0 : 45,
       heading: heading,
       mapTypeControl: false,
       streetViewControl: false,
       fullscreenControl: false, // Disabled for mobile
-      zoomControl: true,
-      zoomControlOptions: {
-        position: window.google.maps.ControlPosition.RIGHT_BOTTOM
-      },
+      zoomControl: false, // Custom controls for better mobile UX
       gestureHandling: 'greedy', // Better mobile touch handling
       clickableIcons: false, // Reduce accidental clicks on mobile
+      disableDefaultUI: true, // Remove all default UI for clean mobile experience
+      backgroundColor: '#f3f4f6', // Prevent white flashes during loading
+      // Mobile performance optimizations
+      maxZoom: isNavigating ? 21 : 18,
+      minZoom: 8,
+      restriction: {
+        strictBounds: false,
+        latLngBounds: null
+      },
+      // Reduce map complexity for smoother performance
       styles: isNavigating ? [
         // High contrast navigation styles
         {
@@ -229,58 +277,56 @@ export const Map3D: React.FC<Map3DProps> = ({
 
   }, [center, tourPoints, routePath, selectedLanguage, onPointClick, completedPoints, isNavigating, navigationRoute, destination]);
 
-  // Update current position marker
+  // Update current position marker with anti-flicker optimization
   useEffect(() => {
     if (!mapInstanceRef.current || !currentPosition) return;
 
+    // Update marker position smoothly
     if (currentMarkerRef.current) {
-      currentMarkerRef.current.setMap(null);
-    }
-
-    // Enhanced navigation arrow with precision indicator
-    currentMarkerRef.current = new window.google.maps.Marker({
-      position: currentPosition,
-      map: mapInstanceRef.current,
-      icon: {
-        path: isNavigating 
-          ? 'M 0,-40 L 15,-8 L 0,-16 L -15,-8 Z' // Larger arrow for navigation
-          : 'M 0,-30 L 12,-6 L 0,-12 L -12,-6 Z',
-        scale: isNavigating ? 2.5 : 2,
-        fillColor: isNavigating ? '#1d4ed8' : '#ef4444',
-        fillOpacity: 1,
-        strokeColor: '#ffffff',
-        strokeWeight: isNavigating ? 4 : 3,
-        rotation: heading,
-        anchor: new window.google.maps.Point(0, 0)
-      },
-      zIndex: 1000,
-      title: isNavigating ? 'Navigating - Current Position' : 'Your Current Location',
-      optimized: false
-    });
-
-    // Ultra-high accuracy navigation positioning
-    if (isNavigating) {
-      // Immediate precise centering for navigation
-      mapInstanceRef.current.setCenter(currentPosition);
-      mapInstanceRef.current.setZoom(20); // Maximum practical zoom for street-level accuracy
+      // Smooth position updates
+      currentMarkerRef.current.setPosition(currentPosition);
       
-      // Real-time heading tracking for navigation
-      if (heading > 0) {
-        mapInstanceRef.current.setHeading(heading);
-        mapInstanceRef.current.setTilt(0); // Top-down for precise navigation
+      // Update icon rotation for heading
+      const currentIcon = currentMarkerRef.current.getIcon();
+      if (currentIcon && heading !== undefined) {
+        currentMarkerRef.current.setIcon({
+          ...currentIcon,
+          rotation: heading
+        });
       }
-      
-      // Enable traffic layer for navigation context
-      const trafficLayer = new window.google.maps.TrafficLayer();
-      trafficLayer.setMap(mapInstanceRef.current);
     } else {
-      // Standard positioning for tour mode
-      mapInstanceRef.current.panTo(currentPosition);
-      if (mapInstanceRef.current.getZoom() < 16) {
-        mapInstanceRef.current.setZoom(16);
-      }
+      // Create marker only once
+      currentMarkerRef.current = new window.google.maps.Marker({
+        position: currentPosition,
+        map: mapInstanceRef.current,
+        icon: {
+          path: isNavigating 
+            ? 'M 0,-40 L 15,-8 L 0,-16 L -15,-8 Z' // Larger arrow for navigation
+            : 'M 0,-30 L 12,-6 L 0,-12 L -12,-6 Z',
+          scale: isNavigating ? 2.5 : 2,
+          fillColor: isNavigating ? '#1d4ed8' : '#ef4444',
+          fillOpacity: 1,
+          strokeColor: '#ffffff',
+          strokeWeight: isNavigating ? 4 : 3,
+          rotation: heading || 0,
+          anchor: new window.google.maps.Point(0, 0)
+        },
+        zIndex: 1000,
+        title: isNavigating ? 'Navigating - Current Position' : 'Your Current Location',
+        optimized: true // Enable marker optimization for better performance
+      });
     }
-  }, [currentPosition, heading]);
+
+    // Use throttled map updates to prevent flickering
+    throttledMapUpdate(currentPosition, heading || 0);
+    
+    // Set appropriate zoom level once
+    if (isNavigating && mapInstanceRef.current.getZoom() < 19) {
+      mapInstanceRef.current.setZoom(19);
+    } else if (!isNavigating && mapInstanceRef.current.getZoom() < 16) {
+      mapInstanceRef.current.setZoom(16);
+    }
+  }, [currentPosition, heading, isNavigating, throttledMapUpdate]);
 
   const getMarkerIcon = (type: string, isCompleted = false) => {
     const icons = {
@@ -342,12 +388,11 @@ export const Map3D: React.FC<Map3DProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full rounded-xl overflow-hidden shadow-xl">
+    <div className="relative w-full h-full rounded-xl overflow-hidden shadow-xl bg-gray-100">
       {/* Map Container */}
       <div 
         ref={mapRef} 
-        className="w-full h-full touch-manipulation touch-pan-x touch-pan-y touch-pinch-zoom"
-        style={{ minHeight: window.innerWidth < 640 ? '300px' : '400px' }}
+        className="map-viewport-mobile"
       />
       
       {/* Mobile Map Controls */}

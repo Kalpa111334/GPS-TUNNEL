@@ -42,6 +42,50 @@
     @apply px-4 sm:px-6 lg:px-8;
   }
   
+  /* Mobile map optimizations to prevent flickering */
+  .map-container-mobile {
+    @apply relative w-full h-full;
+    /* Hardware acceleration */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    /* Anti-flicker optimizations */
+    -webkit-transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    -webkit-perspective: 1000px;
+  }
+  
+  /* Map viewport optimizations */
+  .map-viewport-mobile {
+    @apply w-full h-full touch-manipulation;
+    min-height: 350px;
+    /* Prevent map rendering issues on mobile */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    -webkit-transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    -webkit-perspective: 1000px;
+  }
+  
+  @media (min-width: 640px) {
+    .map-viewport-mobile {
+      min-height: 400px;
+    }
+  }
+  
+  /* Map controls for mobile */
+  .map-controls-mobile {
+    @apply absolute top-4 right-4 flex flex-col space-y-2 z-10;
+  }
+  
+  .map-control-btn {
+    @apply w-10 h-10 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg 
+           flex items-center justify-center touch-manipulation
+           active:scale-95 transition-transform duration-150
+           hover:bg-white/95 border border-gray-200/50;
+  }
+  
   /* Safe area handling for devices with notches */
   .safe-area-top {
     padding-top: env(safe-area-inset-top);

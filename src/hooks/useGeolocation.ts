@@ -128,15 +128,31 @@ export const useGeolocation = () => {
     return (bearing * 180 / Math.PI + 360) % 360;
   };
 
+  const calculateDistance = (pos1: Position, pos2: Position): number => {
+    const R = 6371000; // Earth's radius in meters
+    const lat1Rad = pos1.lat * Math.PI / 180;
+    const lat2Rad = pos2.lat * Math.PI / 180;
+    const deltaLat = (pos2.lat - pos1.lat) * Math.PI / 180;
+    const deltaLng = (pos2.lng - pos1.lng) * Math.PI / 180;
+
+    const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+              Math.cos(lat1Rad) * Math.cos(lat2Rad) *
+              Math.sin(deltaLng/2) * Math.sin(deltaLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    
+    return R * c; // Distance in meters
+  };
+
   const startContinuousTracking = () => {
     if (watchId.current) {
       navigator.geolocation.clearWatch(watchId.current);
     }
 
+    // Enhanced mobile GPS options for high accuracy
     const options = {
       enableHighAccuracy: true,
-      timeout: 5000,
-      maximumAge: 500 // More frequent updates for high-accuracy navigation
+      timeout: 10000, // Increased timeout for mobile GPS
+      maximumAge: 1000 // Reduced cache time for better accuracy
     };
 
     watchId.current = navigator.geolocation.watchPosition(
@@ -147,25 +163,52 @@ export const useGeolocation = () => {
           lng: pos.coords.longitude
         };
 
+        // Filter out inaccurate readings on mobile
+        const accuracy = pos.coords.accuracy;
+        if (accuracy > 100) {
+          console.warn(`Low GPS accuracy: ${accuracy}m, skipping update`);
+          return;
+        }
+
+        // Prevent rapid position jumps (GPS drift filtering)
+        if (position) {
+          const distance = calculateDistance(newPosition, position);
+          const timeDiff = currentTime - lastUpdateTime.current;
+          const maxReasonableSpeed = 50; // 50 m/s max reasonable speed
+          
+          if (distance / (timeDiff / 1000) > maxReasonableSpeed) {
+            console.warn('GPS jump detected, filtering out erratic reading');
+            return;
+          }
+        }
+
         // Calculate speed and heading if we have a previous position
         if (previousPosition) {
           const timeDiff = currentTime - lastUpdateTime.current;
-          if (timeDiff > 0) {
+          if (timeDiff > 1000) { // Only calculate if enough time has passed
             const calculatedSpeed = calculateSpeed(newPosition, previousPosition, timeDiff);
             const calculatedHeading = calculateHeading(newPosition, previousPosition);
             
-            setSpeed(calculatedSpeed);
-            setHeading(calculatedHeading);
+            // Smooth speed and heading changes
+            setSpeed(speed => speed * 0.7 + calculatedSpeed * 0.3);
+            setHeading(heading => {
+              const diff = calculatedHeading - heading;
+              const normalizedDiff = ((diff + 180) % 360) - 180;
+              return heading + normalizedDiff * 0.3;
+            });
           }
         }
 
         setPreviousPosition(position);
         setPosition(newPosition);
-        setAccuracy(pos.coords.accuracy);
+        setAccuracy(accuracy);
         lastUpdateTime.current = currentTime;
         
-        // Update address
-        reverseGeocode(newPosition);
+        // Throttled address updates to prevent flickering
+        const timeSinceLastGeocode = currentTime - (lastUpdateTime.current || 0);
+        if (timeSinceLastGeocode > 5000) {
+          reverseGeocode(newPosition);
+        }
         
         setError(null);
         setIsLoading(false);
