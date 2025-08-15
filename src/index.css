@@ -95,10 +95,52 @@
     animation: gps-stabilize 0.3s ease-in-out;
   }
   
+  .gps-locked {
+    @apply ring-2 ring-green-500 bg-green-50;
+    animation: gps-lock-pulse 2s ease-in-out infinite;
+  }
+  
+  .gps-stabilizing {
+    @apply ring-2 ring-blue-400 bg-blue-50;
+    animation: gps-stabilizing 1.5s ease-in-out infinite;
+  }
+  
   @keyframes gps-stabilize {
     0% { opacity: 0.7; transform: scale(0.98); }
     50% { opacity: 0.9; transform: scale(1.01); }
     100% { opacity: 1; transform: scale(1); }
+  }
+  
+  @keyframes gps-lock-pulse {
+    0%, 100% { 
+      box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4);
+    }
+    50% { 
+      box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+    }
+  }
+  
+  @keyframes gps-stabilizing {
+    0%, 100% { 
+      box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+    }
+    50% { 
+      box-shadow: 0 0 0 8px rgba(59, 130, 246, 0);
+    }
+  }
+  
+  /* Ultra-stable GPS mobile optimizations */
+  .ultra-gps-container {
+    @apply touch-manipulation;
+    /* Prevent accidental touches during GPS lock */
+    pointer-events: auto;
+    /* Smooth transitions for GPS state changes */
+    transition: all 0.3s ease-in-out;
+  }
+  
+  .ultra-gps-container.locked {
+    /* Slightly dim when locked to indicate stable state */
+    opacity: 0.95;
   }
   
   /* Safe area handling for devices with notches */

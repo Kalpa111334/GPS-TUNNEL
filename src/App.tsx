@@ -16,7 +16,9 @@ import { MobileBottomSheet } from './components/MobileBottomSheet';
 import { TouchGestureHandler } from './components/TouchGestureHandler';
 import { useGeolocation } from './hooks/useGeolocation';
 import { useStableGPS } from './hooks/useStableGPS';
+import { useUltraStableGPS } from './hooks/useUltraStableGPS';
 import { GPSStatusIndicator } from './components/GPSStatusIndicator';
+import { UltraStableGPSControl } from './components/UltraStableGPSControl';
 import { useTourRoute } from './hooks/useTourRoute';
 import { useSpeech } from './hooks/useSpeech';
 import { useTourProgress } from './hooks/useTourProgress';
@@ -34,7 +36,19 @@ function App() {
   const [isMobileView, setIsMobileView] = useState(window.innerWidth < 1024);
   const [showMobileControls, setShowMobileControls] = useState(false);
   
-  // Use stable GPS for better accuracy and reduced flickering
+  // 🚨 ULTRA-STABLE GPS - Maximum stability for mobile devices
+  const ultraStableGPS = useUltraStableGPS({
+    lockRadius: 2,              // Lock within 2m radius
+    minimumAccuracy: 5,         // Require ±5m accuracy minimum
+    bufferSize: 15,             // Large buffer for stability
+    lockThreshold: 5,           // 5 consecutive good readings to lock
+    maxJumpDistance: 15,        // Filter jumps > 15m
+    updateInterval: 1000,       // Max 1 update per second
+    enablePositionLock: true,   // Enable position locking
+    lockDuration: 10000         // Lock for 10 seconds
+  });
+
+  // Fallback GPS systems
   const stableGPS = useStableGPS({
     minAccuracy: 3,
     maxAccuracy: 50,
@@ -46,10 +60,9 @@ function App() {
     enableConfidenceFiltering: true
   });
 
-  // Fallback to regular geolocation for compatibility
   const fallbackGPS = useGeolocation();
 
-  // Use stable GPS if available, otherwise fallback
+  // Use ultra-stable GPS as primary, with fallbacks
   const { 
     position, 
     error, 
@@ -58,12 +71,20 @@ function App() {
     currentAddress,
     startTracking, 
     stopTracking
-  } = stableGPS.smoothedPosition ? {
+  } = ultraStableGPS.position ? {
+    position: ultraStableGPS.position,
+    error: ultraStableGPS.error,
+    isLoading: ultraStableGPS.isLoading,
+    accuracy: ultraStableGPS.accuracy,
+    currentAddress: fallbackGPS.currentAddress, // Use fallback for address
+    startTracking: ultraStableGPS.startTracking,
+    stopTracking: ultraStableGPS.stopTracking
+  } : stableGPS.smoothedPosition ? {
     position: stableGPS.smoothedPosition,
     error: stableGPS.error,
     isLoading: stableGPS.isLoading,
     accuracy: stableGPS.accuracy,
-    currentAddress: fallbackGPS.currentAddress, // Use fallback for address
+    currentAddress: fallbackGPS.currentAddress,
     startTracking: stableGPS.startTracking,
     stopTracking: stableGPS.stopTracking
   } : fallbackGPS;
@@ -436,24 +457,44 @@ function App() {
                 </div>
               )}
               
-          <div className="flex space-x-2">
-            <LocationStatus
-              isConnected={hasPermission && !!position && !error}
-              accuracy={accuracy}
-              speed={speed}
-              error={error}
-            />
-            
-            {/* Enhanced GPS Status Indicator */}
-            <GPSStatusIndicator
-              accuracy={stableGPS.accuracy || accuracy}
-              signalQuality={stableGPS.signalQuality || (accuracy <= 10 ? 'excellent' : accuracy <= 20 ? 'good' : accuracy <= 35 ? 'fair' : 'poor')}
-              confidence={stableGPS.confidence || 0.5}
-              isStable={stableGPS.isStable || false}
-              isLoading={isLoading}
-              error={error}
-              readingsCount={stableGPS.rawReadingsCount || 0}
-            />
+          <div className="space-y-3">
+            <div className="flex space-x-2">
+              <LocationStatus
+                isConnected={hasPermission && !!position && !error}
+                accuracy={accuracy}
+                speed={speed}
+                error={error}
+              />
+              
+              {/* Ultra-Stable GPS Status Indicator */}
+              <GPSStatusIndicator
+                accuracy={ultraStableGPS.accuracy || stableGPS.accuracy || accuracy}
+                signalQuality={ultraStableGPS.signalQuality || stableGPS.signalQuality || (accuracy <= 10 ? 'excellent' : accuracy <= 20 ? 'good' : accuracy <= 35 ? 'fair' : 'poor')}
+                confidence={ultraStableGPS.confidence || stableGPS.confidence || 0.5}
+                isStable={ultraStableGPS.isStable || stableGPS.isStable || false}
+                isLoading={isLoading}
+                error={error}
+                readingsCount={ultraStableGPS.bufferSize || stableGPS.rawReadingsCount || 0}
+              />
+            </div>
+
+            {/* Ultra-Stable GPS Control Panel */}
+            {isMobileView && (
+              <UltraStableGPSControl
+                isLocked={ultraStableGPS.isLocked}
+                isStable={ultraStableGPS.isStable}
+                accuracy={ultraStableGPS.accuracy}
+                confidence={ultraStableGPS.confidence}
+                signalQuality={ultraStableGPS.signalQuality}
+                bufferSize={ultraStableGPS.bufferSize}
+                consecutiveGoodReadings={ultraStableGPS.consecutiveGoodReadings}
+                lockRadius={ultraStableGPS.lockRadius}
+                minimumAccuracy={ultraStableGPS.minimumAccuracy}
+                onToggleLock={ultraStableGPS.toggleLock}
+                onReset={ultraStableGPS.resetPosition}
+                error={error}
+              />
+            )}
           </div>
         </div>
 
